@@ -8,13 +8,27 @@ from .forms import ShopForm
 from .models import Shop
 
 
-def shop_list(request):
-    sort = request.GET.get("sort", "name")
 
+def shop_list(request):
     shops = (
         Shop.objects.filter(is_approved=True)
         .annotate(avg_rating=Avg("shop_reviews__overall_score"))
     )
+
+    query = request.GET.get("q")
+    min_rating = request.GET.get("rating")
+    sort = request.GET.get("sort", "name")
+
+    if query:
+        shops = shops.filter(
+            Q(name__icontains=query) | Q(location__icontains=query)
+        )
+
+    if min_rating:
+        try:
+            shops = shops.filter(avg_rating__gte=float(min_rating))
+        except ValueError:
+            pass
 
     if sort == "rating":
         shops = shops.order_by("-avg_rating", "name")
@@ -24,14 +38,19 @@ def shop_list(request):
     return render(
         request,
         "shops/list.html",
-        {"shops": shops, "selected_sort": sort},
+        {
+            "shops": shops,
+            "query": query,
+            "selected_rating": min_rating,
+            "selected_sort": sort,
+        },
     )
 
 
 def shop_detail(request, slug):
     shop = get_object_or_404(Shop, slug=slug, is_approved=True)
 
-    drinks = shop.drinks.all().prefetch_related("drink_reviews")
+    drinks = shop.drinks.all()
     shop_reviews = shop.shop_reviews.select_related("user").all()
     avg_shop_rating = shop_reviews.aggregate(avg=Avg("overall_score"))["avg"]
 
@@ -58,7 +77,7 @@ def add_shop(request):
             shop.is_approved = False
             shop.save()
             messages.success(request, "Shop submitted for approval.")
-            return redirect("shops:submitted", slug=shop.slug)
+            return redirect("home")
     else:
         form = ShopForm()
 

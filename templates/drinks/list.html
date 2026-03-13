@@ -31,7 +31,7 @@
       <label for="drink_type">Drink type</label>
       <select name="drink_type" id="drink_type">
         <option value="">All types</option>
-        {% for value, label in drinks.model.DRINK_TYPE_CHOICES %}
+        {% for value, label in drinks.model.DRINK_TYPES %}
           <option value="{{ value }}" {% if selected_drink_type == value %}selected{% endif %}>
             {{ label }}
           </option>
