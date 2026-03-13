@@ -67,19 +67,20 @@ def drink_list(request):
 
     shops = Shop.objects.filter(is_approved=True).order_by("name")
 
-    return render(
-        request,
-        "drinks/list.html",
-        {
-            "drinks": drinks,
-            "shops": shops,
-            "selected_shop": shop_slug,
-            "selected_drink_type": drink_type,
-            "selected_rating": min_rating,
-            "query": query,
-            "selected_sort": sort,
-        },
-    )
+    context = {
+        "drinks": drinks,
+        "shops": shops,
+        "selected_shop": shop_slug,
+        "selected_drink_type": drink_type,
+        "selected_rating": min_rating,
+        "query": query,
+        "selected_sort": sort,
+    }
+
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return render(request, "drinks/_drink_results.html", context)
+
+    return render(request, "drinks/list.html", context)
 
 
 def drink_detail(request, slug):

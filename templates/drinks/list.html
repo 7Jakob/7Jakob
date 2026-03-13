@@ -3,7 +3,7 @@
 {% block content %}
   <h1>Browse Drinks</h1>
 
-  <form method="get">
+  <form method="get" id="drink-filter-form">
     <div>
       <label for="q">Search</label>
       <input
@@ -61,44 +61,64 @@
     </div>
 
     <button type="submit">Apply</button>
-    <a href="{% url 'drinks:list' %}">Clear filters</a>
+    <a href="{% url 'drinks:list' %}" id="clear-filters-link">Clear filters</a>
   </form>
 
   <hr>
 
-  {% if drinks %}
-    <ul>
-      {% for drink in drinks %}
-        <li>
-          <h3>
-            <a href="{% url 'drinks:detail' drink.slug %}">
-              {{ drink.name }}
-            </a>
-          </h3>
+  <div id="drink-results">
+    {% include "drinks/_drink_results.html" %}
+  </div>
 
-          <p>
-            Shop:
-            <a href="{% url 'shops:detail' drink.shop.slug %}">
-              {{ drink.shop.name }}
-            </a>
-          </p>
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("drink-filter-form");
+      const results = document.getElementById("drink-results");
+      const searchInput = document.getElementById("q");
+      const clearLink = document.getElementById("clear-filters-link");
 
-          <p>Type: {{ drink.get_drink_type_display }}</p>
+      let debounceTimer;
 
-          {% if drink.price %}
-            <p>Price: £{{ drink.price }}</p>
-          {% endif %}
+      function loadResults() {
+        const params = new URLSearchParams(new FormData(form));
+        const url = `${form.action || window.location.pathname}?${params.toString()}`;
 
-          {% if drink.avg_rating %}
-            <p>Average rating: {{ drink.avg_rating|floatformat:1 }}/5</p>
-          {% else %}
-            <p>No ratings yet</p>
-          {% endif %}
-        </li>
-        <hr>
-      {% endfor %}
-    </ul>
-  {% else %}
-    <p>No drinks match your filters.</p>
-  {% endif %}
+        fetch(url, {
+          headers: {
+            "X-Requested-With": "XMLHttpRequest"
+          }
+        })
+          .then(response => response.text())
+          .then(html => {
+            results.innerHTML = html;
+            window.history.replaceState({}, "", url);
+          })
+          .catch(error => {
+            console.error("Error loading filtered drinks:", error);
+          });
+      }
+
+      form.addEventListener("change", function (event) {
+        if (event.target.tagName === "SELECT") {
+          loadResults();
+        }
+      });
+
+      searchInput.addEventListener("input", function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(loadResults, 300);
+      });
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        loadResults();
+      });
+
+      clearLink.addEventListener("click", function (event) {
+        event.preventDefault();
+        form.reset();
+        loadResults();
+      });
+    });
+  </script>
 {% endblock %}
